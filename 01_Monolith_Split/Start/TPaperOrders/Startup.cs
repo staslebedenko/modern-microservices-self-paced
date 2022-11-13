@@ -62,6 +62,8 @@ namespace TPaperOrders
                 }
             });
 
+            services.AddSwaggerDocument();
+
             DeliveryDbContext.ExecuteMigrations(deliveryConnectionString);
             
             services.AddControllers();
@@ -79,6 +81,9 @@ namespace TPaperOrders
             app.UseRouting();
 
             app.UseAuthorization();
+
+            app.UseOpenApi();
+            app.UseSwaggerUi3();
 
             app.UseEndpoints(endpoints =>
             {
