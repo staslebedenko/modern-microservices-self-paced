@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TPaperOrders", "TPaperOrder
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TPaperDelivery", "TPaperDelivery\TPaperDelivery.csproj", "{2E9AA9C0-9F82-4123-A3FD-9D568925E1F8}"
 EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{A37A62F3-B5A9-44AB-B964-7E92B6CA7256}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{2E9AA9C0-9F82-4123-A3FD-9D568925E1F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E9AA9C0-9F82-4123-A3FD-9D568925E1F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2E9AA9C0-9F82-4123-A3FD-9D568925E1F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A37A62F3-B5A9-44AB-B964-7E92B6CA7256}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A37A62F3-B5A9-44AB-B964-7E92B6CA7256}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A37A62F3-B5A9-44AB-B964-7E92B6CA7256}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A37A62F3-B5A9-44AB-B964-7E92B6CA7256}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
