@@ -252,6 +252,9 @@ Changes to URLs
 Deployment to Container Apps via Visual studio
 Configuration for GitHub actions deployments
 
+![image](https://user-images.githubusercontent.com/36765741/202031699-2787a2b0-2368-45e5-b37c-76e1550b78d7.png)
+
+
 ## Step 3. Basics of Container Apps 
 
 
