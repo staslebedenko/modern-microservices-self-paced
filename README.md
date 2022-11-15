@@ -273,6 +273,12 @@ before the following line
 RUN dotnet publish "TPaperOrders.csproj" -c Release -o /app/publish /p:UseAppHost=false
 ```
 
+and also adding the port 443 for SSL, please repeat this step for delivery project if you got the bad manifest
+
+And as summary we deploying two containers into the single container app.
+
+Let's see the results.
+
 ## Step 3. Basics of Container Apps 
 
 
