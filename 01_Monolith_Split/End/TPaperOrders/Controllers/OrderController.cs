@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Net.Http;
 using System.Threading;
@@ -54,11 +55,20 @@ namespace TPaperOrders
 
         private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
         {
-            var route = $"api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
-            // TODO use http call to delivery service
-            DeliveryModel savedDelivery = new DeliveryModel();
+            string url = $"http://tpaperdelivery:80/api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
 
-            return savedDelivery;
+            using var httpClient = _clientFactory.CreateClient();
+            var uriBuilder = new UriBuilder(url);
+
+            using var result = await httpClient.GetAsync(uriBuilder.Uri, cts);
+            if (!result.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var content = await result.Content.ReadAsStringAsync();
+
+            return JsonConvert.DeserializeObject<DeliveryModel>(content);
         }
     }
 }
