@@ -293,7 +293,33 @@ Which means that we not configured secrets for our application.
 Let's do a quick fix by adding secrets to the Container App settings (KeyVault we will use later)
 ![image](https://user-images.githubusercontent.com/36765741/202296088-7dc6f0cb-538a-4e2a-a459-5151c2038a01.png)
 
+After this changes we re-deploying our application and getting another error Cannot open server 'dcc-modern-sql' requested by the login. Client with IP address
 
+There is a two ways to solve this problem, the first is to use Azure Connector preview and make a direct link to database with secrets managed by KeyVault, or add IP address to exceptions. Or you can create a Container app environment with VNet from the start and use network endpoint of Azure SQL
+
+After this changes our application successfuly provisioned, but we need to deploy a delivery app as a separate app and configure urls for service to service communications.
+
+We will need to get a full URL of Delivery Container APP from a portal or Azure cli for automation
+```
+acaGroupName=dcc-modern-containerapp
+acaName=dcc-modern-containerapp
+								  
+az containerapp show --resource-group acaGroupName \
+--name acaName --query properties.configuration.ingress.fqdn
+```
+so we will get following url
+
+```
+tpaperdelivery-app-2022111622390--dgcp1or.agreeablecoast-99a44d4d.northeurope.azurecontainerapps.io
+```
+and add internal, so it will look like
+```
+tpaperdelivery-app-2022111622390--dgcp1or.internal.agreeablecoast-99a44d4d.northeurope.azurecontainerapps.io
+```
+and add this value to DeliveryUrl environment variable file with docker url, and to container app config DeliveryUrl
+
+And please allow Insecure connections for Delivery service via ingress configuration
+![image](https://user-images.githubusercontent.com/36765741/202306805-5620b8cd-4fb1-4dba-80b7-8ce54e80dbc9.png)
 
 Let's see the results.
 
