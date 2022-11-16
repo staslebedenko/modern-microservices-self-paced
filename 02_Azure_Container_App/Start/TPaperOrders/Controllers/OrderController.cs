@@ -55,7 +55,8 @@ namespace TPaperOrders
 
         private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
         {
-            string url = $"http://tpaperdelivery:80/api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
+            string baseUrl = Environment.GetEnvironmentVariable("DeliveryUrl");
+            string url = $"{baseUrl}/api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
 
             using var httpClient = _clientFactory.CreateClient();
             var uriBuilder = new UriBuilder(url);
@@ -69,6 +70,13 @@ namespace TPaperOrders
             var content = await result.Content.ReadAsStringAsync();
 
             return JsonConvert.DeserializeObject<DeliveryModel>(content);
+        }
+        
+        [HttpGet]
+        [Route("health")]
+        public async Task<IActionResult> Health(CancellationToken cts)
+        {
+            return new OkObjectResult("Started");
         }
     }
 }

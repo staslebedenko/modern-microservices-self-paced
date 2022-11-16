@@ -46,8 +46,8 @@ namespace TPaperDelivery
         }
 
         [HttpGet]
-        [Route("get")]
-        public async Task<IActionResult> Get(CancellationToken cts)
+        [Route("health")]
+        public async Task<IActionResult> Health(CancellationToken cts)
         {
             return new OkObjectResult("Started");
         }
