@@ -20,7 +20,7 @@
     "TPaperDelivery": {
       "commandName": "Project",
       "launchBrowser": true,
-      "launchUrl": "api/delivery/get",
+      "launchUrl": "api/delivery/health",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
@@ -29,7 +29,7 @@
     "Docker": {
       "commandName": "Docker",
       "launchBrowser": true,
-      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/api/delivery/get",
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/api/delivery/health",
       "publishAllPorts": true
     }
   }
