@@ -6,8 +6,8 @@ The workshop is build around many steps.
 
 0. Deployment of required Azure infrastructure, databases for step one and two, along with Container App environment and AKS
 1. Preparing monolith for split and splitting it into two services with containerization.
-2. Overview of the existing Azure resources and deployment of solution from Visual Studio and GitHub
-3. Basics of Container Apps
+2. Overview of the existing Azure resources and deployment of solution from Visual Studio
+3. Overview of Container Apps key features and problems. Extra tasks
 4. Adding DAPR to the Container App and explanation of approaches and benefits
 5. Create AKS manifest, setting up DAPR in Azure Kubernetes cluster and deploying solution to Cloud.
 6. Adding DAPR pubsub component and RabbitMQ container. Changing solution code to work with a pubsub.
@@ -429,7 +429,8 @@ secrets:
   value: super-secret
 ```
 
-And then deploying it to Azure via local azure CLI or portal console with file upload. Locally you should do az login first
+And then deploying it to Azure via local azure CLI or portal console with file upload. Locally you should do az login first. 
+The pubsub component would be pubsubsbus, we will use it later in code.
 ```
 az containerapp env dapr-component set --resource-group dcc-modern-containerapp --name dcc-environment --dapr-component-name pubsubsbus --yaml "pubsubsbus.yaml"
 ```
@@ -444,13 +445,111 @@ One important this, please add the following section to your service bus connect
 
 Now let's add DAPR pub/sub components to our solution.
 
-## Step 3. Basics of Container Apps 
+Change CreateDeliveryForOrder in TPaperOrders project to the following code that uses DAPR pubsub
+```
+        private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
+        {
+            var newDelivery = new DeliveryModel
+            {
+                Id = 0,
+                ClientId = savedOrder.ClientId,
+                EdiOrderId = savedOrder.Id,
+                Number = savedOrder.Quantity,
+                ProductId = 0,
+                ProductCode = savedOrder.ProductCode,
+                Notes = "Prepared for shipment"
+            };
+
+            await _daprClient.PublishEventAsync<DeliveryModel>("pubsub", "createdelivery", newDelivery, cts);
+
+            return newDelivery;
+        }
+```
+
+Adding DAPR dependency
+```
+ <PackageReference Include="Dapr.AspNetCore" Version="1.9.0" />
+```
+
+Change method CreateDeliveryForOrder in OrderController to
+```
+        private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
+        {
+            var newDelivery = new DeliveryModel
+            {
+                Id = 0,
+                ClientId = savedOrder.ClientId,
+                EdiOrderId = savedOrder.Id,
+                Number = savedOrder.Quantity,
+                ProductId = 0,
+                ProductCode = savedOrder.ProductCode,
+                Notes = "Prepared for shipment"
+            };
+
+            await _daprClient.PublishEventAsync<DeliveryModel>("pubsubsbus", "createdelivery", newDelivery, cts);
+
+            return newDelivery;
+        }
+```
+
+And most importantly change double to decimal in Delivery model Number field
 
 
-## Step 4. Adding DAPR in the loop
+For TPaperDelivery project, update Startup class
+```
+services.AddControllers().AddDapr();
+```
+and 
+```
+app.UseAuthorization();
+
+app.UseCloudEvents();
+
+app.UseOpenApi();
+app.UseSwaggerUi3();
+
+app.UseEndpoints(endpoints =>
+{
+endpoints.MapSubscribeHandler();
+endpoints.MapControllers();
+});
+```
+
+And finally make a proper signature on ProcessEdiOrder endpoint
+```
+[Topic("pubsubsbus", "createdelivery")]
+[HttpPost]
+[Route("createdelivery")]
+```
+
+And add method to enumerate all stored deliveries
+```
+[HttpGet]
+[Route("deliveries")]
+public async Task<IActionResult> Get(CancellationToken cts)
+{
+    Delivery[] registeredDeliveries = await _context.Delivery.ToArrayAsync(cts);
+
+    return new OkObjectResult(registeredDeliveries);
+}
+```
+
+And after all this changes we can deploye and observe results in Azure.
 
 
-## Step 5.
+## Step 3. Overview of Container Apps key features and problems
+
+Additional tasks
+
+* Return delivery model via additional pubsub to Order service, so we can update order entity with a proper delivery Id.
+* Add a local pubsub via Rabbit MQ for debug purposes(optional)
+* Add deployment via GitHub actions(optional)
+
+
+## Step 4. Migrating solution to Kubernetes and switching pubsub to RabbitMQ
+
+
+## Step 5. Additional DAPR components.
 
 
 ## Step 6.
