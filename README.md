@@ -321,7 +321,95 @@ and add this value to DeliveryUrl environment variable file with docker url, and
 And please allow Insecure connections for Delivery service via ingress configuration
 ![image](https://user-images.githubusercontent.com/36765741/202306805-5620b8cd-4fb1-4dba-80b7-8ce54e80dbc9.png)
 
-Let's see the results.
+We should use the full path to make initial call to order API and see results
+tpaperorders-app-20221115224238--k1osno8.agreeablecoast-99a44d4d.northeurope.azurecontainerapps.io/api/order/create/1
+
+And now it is time to add intialize and add DAPR, run solution locally, initialize DAPR in the ACA apps and add pubsub component via Azure Service Bus.
+
+Lets open a command prompt with admin rights to install Dapr CLI
+```
+powershell -Command "iwr -useb https://raw.githubusercontent.com/dapr/cli/master/install/install.ps1 | iex"
+```
+
+And initialize DAPR for the local development
+
+```
+dapr init
+```
+We can check results(container list) by opening Docker Desktop or running command docker ps.
+
+Lets update our solution compose file with DAPR sidecar containers, for production you should replace DAPR latest with particular version to avoid problems with auto updates.
+
+```
+version: '3.4'
+
+services:
+  tpaperdelivery:
+    image: ${DOCKER_REGISTRY-}tpaperdelivery
+    build:
+      context: .
+      dockerfile: TPaperDelivery/Dockerfile
+    ports:
+      - "52000:50001"
+    env_file:
+      - settings.env
+      
+  tpaperdelivery-dapr:
+    image: "daprio/daprd:latest"
+    command: [ "./daprd", "-app-id", "tpaperdelivery", "-app-port", "80" ]
+    depends_on:
+      - tpaperdelivery
+    network_mode: "service:tpaperdelivery"
+      
+  tpaperorders:
+    image: ${DOCKER_REGISTRY-}tpaperorders
+    build:
+      context: .
+      dockerfile: TPaperOrders/Dockerfile
+    ports:
+      - "51000:50001"
+    env_file:
+      - settings.env
+
+  tpaperorders-dapr:
+    image: "daprio/daprd:latest"
+    command: [ "./daprd", "-app-id", "tpaperorders", "-app-port", "80" ]
+    depends_on:
+      - tpaperorders
+    network_mode: "service:tpaperorders"      
+```
+
+Now we need to make adjustments to PaperOrders project, by adding DAPR dependency
+
+```
+<PackageReference Include="Dapr.AspNetCore" Version="1.9.0" />
+```
+Adding it to the Startup 
+
+```
+services.AddControllers().AddDapr();
+```
+And replacing method CreateDeliveryForOrder with http endpoint invocation via DAPR client
+
+```
+        private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
+        {
+            string serviceName = "tpaperdelivery";
+            string route = $"api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
+
+            DeliveryModel savedDelivery = await _daprClient.InvokeMethodAsync<DeliveryModel>(
+                                          HttpMethod.Get, serviceName, route, cts);
+
+            return savedDelivery;
+        }
+        }
+```
+
+If we will start a service and invoke a new order via http://localhost:52043/api/order/create/1 we can see that everything working as usual, except that we got additional container sidecars for each service 
+
+This way we leveraged service locator provided by dapr, it is still a http communication between services, but now you can skip usage of evnironment variable and routing will be a responsibility of 
+
+Now let's configure Azure Container instances for DAPR usage
 
 ## Step 3. Basics of Container Apps 
 
