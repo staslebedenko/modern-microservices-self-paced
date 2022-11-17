@@ -1,4 +1,6 @@
+using Dapr.Client;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -16,16 +18,16 @@ namespace TPaperOrders
 
         private readonly ILogger<OrderController> _logger;
 
-        private readonly IHttpClientFactory _clientFactory;
+        private readonly DaprClient _daprClient;
 
         public OrderController(
             PaperDbContext context,
             ILogger<OrderController> logger,
-            IHttpClientFactory clientFactory)
+            DaprClient daprClient)
         {
             _context = context;
             _logger = logger;
-            _clientFactory = clientFactory;
+            _daprClient = daprClient ?? throw new ArgumentNullException(nameof(daprClient));
         }
 
         [HttpGet]
@@ -55,23 +57,15 @@ namespace TPaperOrders
 
         private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
         {
-            string baseUrl = Environment.GetEnvironmentVariable("DeliveryUrl");
-            string url = $"{baseUrl}/api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
+            string serviceName = "tpaperdelivery";
+            string route = $"api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
 
-            using var httpClient = _clientFactory.CreateClient();
-            var uriBuilder = new UriBuilder(url);
+            DeliveryModel savedDelivery = await _daprClient.InvokeMethodAsync<DeliveryModel>(
+                                          HttpMethod.Get, serviceName, route, cts);
 
-            using var result = await httpClient.GetAsync(uriBuilder.Uri, cts);
-            if (!result.IsSuccessStatusCode)
-            {
-                return null;
-            }
-
-            var content = await result.Content.ReadAsStringAsync();
-
-            return JsonConvert.DeserializeObject<DeliveryModel>(content);
+            return savedDelivery;
         }
-        
+
         [HttpGet]
         [Route("health")]
         public async Task<IActionResult> Health(CancellationToken cts)
