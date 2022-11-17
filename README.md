@@ -277,7 +277,7 @@ RUN dotnet publish "TPaperOrders.csproj" -c Release -o /app/publish /p:UseAppHos
 
 and also adding the port 443 for SSL, please repeat this step for delivery project if you got the bad manifest
 
-And as summary we deploying two containers into the single container app.
+Let's try to deploy two containers to container app.
 
 And now it is time to figure out our FQDN so we can call our services externally and internally.
 And also have a look into our Portal configurations
@@ -297,7 +297,12 @@ After this changes we re-deploying our application and getting another error Can
 
 There is a two ways to solve this problem, the first is to use Azure Connector preview and make a direct link to database with secrets managed by KeyVault, or add IP address to exceptions. Or you can create a Container app environment with VNet from the start and use network endpoint of Azure SQL
 
-After this changes our application successfuly provisioned, but we need to deploy a delivery app as a separate app and configure urls for service to service communications.
+After this changes our application successfuly provisioned.
+
+There is a limit of one ingress per one container app, along with the reccomendation to host two containers only in case of workload + sidecar.
+Moreover Visual studion will not let you easily do so.
+
+So we need to deploy a delivery app as a separate app and configure urls for service to service communications.
 
 We will need to get a full URL of Delivery Container APP from a portal or Azure cli for automation
 ```
@@ -407,9 +412,37 @@ And replacing method CreateDeliveryForOrder with http endpoint invocation via DA
 
 If we will start a service and invoke a new order via http://localhost:52043/api/order/create/1 we can see that everything working as usual, except that we got additional container sidecars for each service 
 
-This way we leveraged service locator provided by dapr, it is still a http communication between services, but now you can skip usage of evnironment variable and routing will be a responsibility of 
+This way we leveraged service locator provided by dapr, it is still a http communication between services, but now you can skip usage of evnironment variable and routing will be a responsibility of DAPR.
 
-Now let's configure Azure Container instances for DAPR usage
+### Now we will need to add a PubSub component and DAPR component 
+
+First we preparing simplified DAPR pubsub yaml manifest for pubsub(available in yaml folder of Step 2 End)
+
+```
+componentType: pubsub.azure.servicebus
+version: v1
+metadata:
+- name: connectionString
+  secretRef: sbus-connectionstring
+secrets:
+- name: sbus-connectionstring
+  value: super-secret
+```
+
+And then deploying it to Azure via local azure CLI or portal console with file upload. Locally you should do az login first
+```
+az containerapp env dapr-component set --resource-group dcc-modern-containerapp --name dcc-environment --dapr-component-name pubsubsbus --yaml "pubsubsbus.yaml"
+```
+
+Important thing, we are adding this DAPR component for entire environment, so it will be available for all apps, also we not included scopes at this step, something for the future.
+
+Afterwards there is a need to put the correct Azure Service Bus connection string on the portal via Container App environment
+![image](https://user-images.githubusercontent.com/36765741/202546502-342421d4-c14f-4f2f-8118-df220f752232.png)
+
+One important this, please add the following section to your service bus connection string ";EntityPath=createdelivery"
+"Endpoint=sb://dccmodern2141.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=CGnGz1L+Jw=;EntityPath=createdelivery"
+
+Now let's add DAPR pub/sub components to our solution.
 
 ## Step 3. Basics of Container Apps 
 
