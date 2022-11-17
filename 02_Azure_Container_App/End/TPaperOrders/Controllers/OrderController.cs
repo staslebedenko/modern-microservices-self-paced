@@ -57,13 +57,20 @@ namespace TPaperOrders
 
         private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
         {
-            string serviceName = "tpaperdelivery";
-            string route = $"api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
+            var newDelivery = new DeliveryModel
+            {
+                Id = 0,
+                ClientId = savedOrder.ClientId,
+                EdiOrderId = savedOrder.Id,
+                Number = savedOrder.Quantity,
+                ProductId = 0,
+                ProductCode = savedOrder.ProductCode,
+                Notes = "Prepared for shipment"
+            };
 
-            DeliveryModel savedDelivery = await _daprClient.InvokeMethodAsync<DeliveryModel>(
-                                          HttpMethod.Get, serviceName, route, cts);
+            await _daprClient.PublishEventAsync<DeliveryModel>("pubsubsbus", "createdelivery", newDelivery, cts);
 
-            return savedDelivery;
+            return newDelivery;
         }
 
         [HttpGet]
