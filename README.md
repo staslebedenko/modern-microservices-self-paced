@@ -548,6 +548,276 @@ Additional tasks
 
 ## Step 4. Migrating solution to Kubernetes and switching pubsub to RabbitMQ
 
+As our application grows, Container Apps might be not enough, so the essential migration path is to Azure Kubernetes Service
+
+Spoiler. We will add Azure KeyVault in the next step and continue with abstracting it with DAPR component
+
+First we need to add two secrets to the K8s manifest
+Service bus connection string and SQL server password
+
+We will need to encode secrets with base64 via command line or online tool https://string-functions.com/base64encode.aspx
+
+You can check example conversion below
+```
+Endpoint=sb://dccmodern3214.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=J+Jw=;EntityPath=createdelivery
+RW5kcG9pbnQ9c2I6Ly9kY2Ntb2Rlcm4zMjE0LnNlcnZpY2VidXMud2luZG93cy5uZXQvO1NoYXJlZEFjY2Vzc0tleU5hbWU9Um9vdE1hbmFnZVNoYXJlZEFjY2Vzc0tleTtTaGFyZWRBY2Nlc3NLZXk9SitKdz07RW50aXR5UGF0aD1jcmVhdGVkZWxpdmVyeQ==
+```
+
+And so our final manifest will look like this.
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sbus-secret
+type: Opaque
+data:
+  connectionstring: RW5kcG9mVyeQ==
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sql-secret
+type: Opaque
+data:
+  password: U3Vg==
+```
+
+Lets start with CMD. !!!Use additional command az account set --subscription 95cd9078f8c to deploy resources into the correct subscription
+```cmd
+az login
+
+az account show
+az acr login --name dccmodernregistry
+az aks get-credentials --resource-group dcc-modern-cluster --name dcc-modern-cluster
+kubectl config use-context dcc-modern-cluster
+kubectl get all
+```
+
+And initialize DAPR in our kubernetes cluster
+```cmd
+dapr init -k 
+```
+
+Validate results of initialization
+```cmd
+dapr status -k 
+```
+Then we will need to build our solution in release mode and observe results with command. We building containers trough Visual Studio and tagging them via command line
+You can also start docker desktop application for GUI container handling.
+
+Lets see what images do we have with
+```cmd
+docker images
+```
+
+Lets tag our newly built container with azure container registry name and version.
+```cmd
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v1
+docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v1
+```
+
+Check results with
+```cmd
+docker images
+```
+
+
+And push images to container registry
+```cmd
+docker push dccmodernregistry.azurecr.io/tpaperorders:v1
+docker push dccmodernregistry.azurecr.io/tpaperdelivery:v1
+```
+
+Now we need to update container version in orders manifest
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tpaperorders
+  namespace: tpaper
+  labels:
+    app: tpaperorders
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: tpaperorders
+  template:
+    metadata:
+      labels:
+        app: tpaperorders
+        service: tpaperorders
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "tpaperorders"
+        dapr.io/app-port: "80"
+        dapr.io/log-level: debug
+    spec:
+      containers:
+        - name: tpaperorders
+          image: msactionregistry.azurecr.io/tpaperorders:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:80
+            - name: SqlPaperString
+              value: Server=tcp:dcc-modern-sql.database.windows.net,1433;Database=paperorders;User ID=FancyUser3;Encrypt=true;Connection Timeout=30;
+            - name: SqlPaperPassword
+              valueFrom:
+                secretKeyRef:
+                  name: sql-secret
+                  key: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tpaperorders
+  namespace: tpaper
+  labels:
+    app: tpaperorders
+    service: tpaperorders
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    service: tpaperorders
+```
+
+And delivery manifest
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tpaperdelivery
+  namespace: tpaper
+  labels:
+    app: tpaperdelivery
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: tpaperdelivery
+  template:
+    metadata:
+      labels:
+        app: tpaperdelivery
+        service: tpaperdelivery
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "tpaperdelivery"
+        dapr.io/app-port: "80"
+        dapr.io/log-level: debug
+    spec:
+      containers:
+        - name: tpaperdelivery
+          image: dccmodernregistry.azurecr.io/tpaperdelivery:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: ASPNETCORE_URLS
+              value: http://+:80
+            - name: SqlDeliveryString
+              value: Server=tcp:dcc-modern-sql.database.windows.net,1433;Database=deliveries;User ID=FancyUser3;Encrypt=true;Connection Timeout=30;
+            - name: SqlPaperPassword
+              valueFrom:
+                secretKeyRef:
+                  name: sql-secret
+                  key: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tpaperdelivery
+  namespace: tpaper
+  labels:
+    app: tpaperdelivery
+    service: tpaperdelivery
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    service: tpaperdelivery
+```
+
+But before deployment of our services we need to deploye secrets and pubsub DAPR component
+As you can see, the file is slightly different from Container Apps version
+
+DAPR pubsub component
+```
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-super-new
+  namespace: default
+spec:
+  type: pubsub.azure.servicebus
+  version: v1
+  metadata:
+  - name: connectionString
+    secretKeyRef:
+      name: sbus-secret
+      key:  connectionstring
+auth:
+  secretStore: kubernetes
+scopes:
+  - tpaperorders
+  - tpaperdeliver
+```
+
+Manifest to create a new namespace
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tpaper
+  labels:
+    name: tpaper
+```
+
+deployment of secrets and pubsub component
+```cmd
+kubectl apply -f aks_secrets.yaml
+kubectl apply -f aks_pubsub-servicebus.yaml
+```
+
+creation of the new namespace, so we can easily find our services
+```cmd
+kubectl apply -f aks_namespace-tpaper.yaml
+```
+
+Now we need to pray the "demo gods" for our deployment and run commands below
+```cmd
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl apply -f aks_tpaperdelivery-deploy.yaml
+```
+
+
+You can use set of commands below for quick container/publish re-deployments.
+Just change version in kubernetes manifest and commands below.
+```cmd
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v1
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperorders:v1
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all --all-namespaces
+
+docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v1
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperdelivery:v1
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all --all-namespaces
+```
 
 ## Step 5. Additional DAPR components.
 
