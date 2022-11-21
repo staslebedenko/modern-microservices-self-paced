@@ -759,7 +759,7 @@ apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
   name: pubsub-super-new
-  namespace: default
+  namespace: tpaper
 spec:
   type: pubsub.azure.servicebus
   version: v1
@@ -785,17 +785,16 @@ metadata:
     name: tpaper
 ```
 
-deployment of secrets and pubsub component
-```cmd
-kubectl apply -f aks_secrets.yaml
-kubectl apply -f aks_pubsub-servicebus.yaml
-```
-
 creation of the new namespace, so we can easily find our services
 ```cmd
 kubectl apply -f aks_namespace-tpaper.yaml
 ```
 
+deployment of secrets and pubsub component
+```cmd
+kubectl apply -f aks_secrets.yaml
+kubectl apply -f aks_pubsub-servicebus.yaml
+```
 Now we need to pray the "demo gods" for our deployment and run commands below
 ```cmd
 kubectl apply -f aks_tpaperorders-deploy.yaml
@@ -815,9 +814,148 @@ kubectl get all --all-namespaces
 docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v1
 docker images
 docker push dccmodernregistry.azurecr.io/tpaperdelivery:v1
-kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl apply -f aks_tpaperdelivery-deploy.yaml
 kubectl get all --all-namespaces
 ```
+
+And now the most interesting part. Is to debug our application and make it work the proper way.
+For this we can use console and kubernetes container logs or Lens, The kubernetes IDE.
+
+Let's check output of kubectl get all to get IP addresses of our services
+```
+20.82.168.123/api/order/create/1
+20.82.168.61/api/delivery/deliveries
+```
+
+Nothing works and no one knows why (c)
+
+Adding here commands to watch container logs for reference, but for better understanding we will use Lens.
+You should get correct pod names from get all command and change log command accordingly.
+
+```cmd
+kubectl get all --all-namespaces
+
+kubectl logs tpaperdelivery-599b8cd4b7-8nxzz daprd
+kubectl logs tpaperdelivery-599b8cd4b7-8nxzz tpaperdelivery
+```
+
+![image](https://user-images.githubusercontent.com/36765741/203056933-9d0a8654-3138-4552-a084-f2b67e3fc753.png)
+
+Our containers crushed, so we need to figure this out :)
+
+let's procced with cmd and kubectl
+
+switching to the tpaper namespace
+```
+kubectl config set-context --current --namespace=tpaper
+kubectl get all
+```
+now we can get detailed information about failed pod
+```
+kubectl describe pod/tpaperdelivery-7698f99cd5-2q9ml
+```
+It will be a lot of information, but if there are no exact details, we should check our service manifest and connected dependencies, like secrets
+
+Quick check of our namespace tpaper via Lens show us that there are no secrets configured
+![image](https://user-images.githubusercontent.com/36765741/203061153-c903aa60-2e5e-4d01-a177-01f63dd10088.png)
+
+And secrets configured for default namespace
+![image](https://user-images.githubusercontent.com/36765741/203061285-a4ba0072-f55b-4401-8201-be9aa8fa22fa.png)
+
+So we need to add namespace to our secret yaml
+```
+metadata:
+  name: sbus-secret
+  namespace: tpaper
+type: Opaque
+```
+and deploy it again
+```
+kubectl apply -f aks_secrets.yaml
+```
+
+And then you can redeploy your containers, or simply restart deployment from Lens UI
+![image](https://user-images.githubusercontent.com/36765741/203068399-9c4de228-27a0-4942-9764-52c9721bbb31.png)
+
+
+
+And now it is much better, we have internal server exception with database migration and connectivity to SQL server
+![image](https://user-images.githubusercontent.com/36765741/203067924-e35fb263-c86d-4588-ae73-b415c670e514.png)
+
+Let's fix it
+
+There are two steps to do it via Azure Portal.
+
+Kubernetes connectivity
+* Navigate into resource group MC_dcc-modern-cluster_dcc-modern-cluster_northeurope
+* Open Virtual network there
+* Open Service endpoints and click add
+* Select Microsoft.SQL from dropdown and select aks-vnet in the next dropdown.
+* Add additional integration with Microsoft.ServiceBus
+* Save it, update might take a few minutes
+
+SQL Server connectivity.
+* Navigate to the resource group - ms-action-dapr-data
+* Open Sql Server ms-action-dapr
+* Click Show Firewall
+* On top click add client IP address, so you can access sql server from your work machine
+* Click  Add existing virtual network + Create new virtual network
+* Add aks-vnet with a proper name(check name via AKS cluster group)
+* Most important step - click Save in the portal UI
+
+Now it is much better
+![image](https://user-images.githubusercontent.com/36765741/203074200-17d114a2-deb9-4486-839d-d72ef74dd5aa.png)
+
+Now we can restart the order service, and if we will do kubectl describe command, we can see that deployment yaml have wrong container registry name.
+![image](https://user-images.githubusercontent.com/36765741/203076456-2da93355-cb8d-4d94-813c-03bb8b7a5910.png)
+
+So we fixing the name in aks_tpaperorders-deploy.yaml from 
+```
+        - name: tpaperorders
+          image: dccmodernregistry.azurecr.io/tpaperorders:v1
+          imagePullPolicy: Always
+```
+And applying deployment again via cmd
+```
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all 
+```
+
+And quick invocation of delivery endpoint shows that everything is working
+![image](https://user-images.githubusercontent.com/36765741/203077131-345ee0ca-aa17-4ae2-9275-d2c27e918e54.png)
+
+But when we try to create orders, we will get an error, no pubsub configured
+![image](https://user-images.githubusercontent.com/36765741/203077605-e8092b15-4871-4320-8179-17402e359231.png)
+
+The reason is that pubsub component in AKS have a different name in manifest, so we need to update it in Visual Studio and deploy services with V2 manifest update
+Let's change pubsub component name from pubsubsbus to pubsub-super-new, change topic name from createdelivery to aksdelivery, rebuild containers in VS, tag them with version 2, change manifest and deploy everything
+
+```cmd
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v3
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperorders:v3
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all --all-namespaces
+
+docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v6
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperdelivery:v6
+kubectl apply -f aks_tpaperdelivery-deploy.yaml
+kubectl get all --all-namespaces
+```
+
+Another possible error that you can encounter is the Error Connecting to subchannel, it means that something is wrong with DAPR sidecar
+![image](https://user-images.githubusercontent.com/36765741/203084539-6fef1211-d25a-486e-a2b9-de282e0cf7e9.png)
+
+It means that DAPR sidecar container was not deployed with your service, you can check it via Lena or console like this
+![image](https://user-images.githubusercontent.com/36765741/203087594-9e39f234-7159-48c6-946c-7315147c5c76.png)
+ or
+![image](https://user-images.githubusercontent.com/36765741/203087760-20d536da-7b29-4dd5-bda8-9f6d8d703d7c.png)
+
+If you are closely following this tutorial by yourself, there is a mistake in one of the manifests, and it can be easily fixed if you know about service discovery process.
+
+! Make sure that dapr pubsub component deployed into the same namespace as services.
+! Make sure that you changed service bus topic name in Visual Studio
 
 ## Step 5. Additional DAPR components.
 
