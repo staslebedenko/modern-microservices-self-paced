@@ -560,7 +560,7 @@ We will need to encode secrets with base64 via command line or online tool https
 You can check example conversion below
 ```
 Endpoint=sb://dccmodern3214.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=J+Jw=;EntityPath=createdelivery
-RW5kcG9pbnQ9c2I6Ly9kY2Ntb2Rlcm4zMjE0LnNlcnZpY2VidXMud2luZG93cy5uZXQvO1NoYXJlZEFjY2Vzc0tleU5hbWU9Um9vdE1hbmFnZVNoYXJlZEFjY2Vzc0tleTtTaGFyZWRBY2Nlc3NLZXk9SitKdz07RW50aXR5UGF0aD1jcmVhdGVkZWxpdmVyeQ==
+RcG9eQ
 ```
 
 And so our final manifest will look like this.
@@ -590,7 +590,7 @@ az account show
 az acr login --name dccmodernregistry
 az aks get-credentials --resource-group dcc-modern-cluster --name dcc-modern-cluster
 kubectl config use-context dcc-modern-cluster
-kubectl get all
+kubectl get all --all-namespaces
 ```
 
 And initialize DAPR in our kubernetes cluster
