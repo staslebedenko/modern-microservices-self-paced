@@ -957,10 +957,129 @@ If you are closely following this tutorial by yourself, there is a mistake in on
 ! Make sure that dapr pubsub component deployed into the same namespace as services.
 ! Make sure that you changed service bus topic name in Visual Studio
 
-## Step 5. Additional DAPR components.
+## Step 5. Additional DAPR components. Secret.
+* We created an Azure Key Vault with our infrastructure beforehand. 
+But steps below included just in case.
 
+The best way to go is to use the Managed identity approach, but it is messed up because old approach getting deprecated and new one is due in September 2023. The current documentation contains errors and not usable. This is also the reason why there is no connector in Container apps to Azure KeyVault
 
-## Step 6.
+Create a service principal with a new certificate and store the 3-year certificate inside [your keyvault]'s certificate vault.
+
+> **Note** you can skip this step if you want to use an existing service principal for keyvault instead of creating new one
+
+```bash
+postfix=
+principalName=vaultadmin2
+principalCertName=vaultadmincert
+keyvaultName=dcc-modern$postfix
+
+az ad sp create-for-rbac --name $principalName --password "PSfdasitI1mPFaXD7A5duZEEZXe8r+lnoVbfxmRV"  --years 3
+
+output
+{
+  "appId": "474f817c-7eba-4656-ae09-979a4bc8d844",
+  "displayName": "vaultadmin",
+  "password": null,
+  "tenant": "53e93ede-ec5b-4d7a-8376-48e080d23e88"
+}
+```
+
+**Save the both the appId and tenant from the output which will be used in the next step**
+
+* Set the AppId for the next script, and get id from output
+
+```bash
+az ad sp show --id 474f817c-7eba-4656-ae09-979a4bc8d844
+
+{
+    ...
+    "id": "f1d1a707-1356-4fb8-841b-98e1d9557b05",
+    ...
+}
+```
+
+* Grant the service principal the GET and List permissions to your Azure Key Vault by setting the id value to object id below
+
+```bash
+az keyvault set-policy --name $keyvaultName --object-id f1d1a707-1356-4fb8-841b-98e1d9557b05 --secret-permissions get list
+```
+
+and set a random secret, so we can get it from solution code
+
+```bash
+az keyvault secret set --name RandomSecret --vault-name $keyvaultName --value FancySecret
+```
+
+Now, your service principal has access to your keyvault,  you are ready to configure the secret store component to use secrets stored in your keyvault to access other components securely.
+
+Find your principal via Azure portal and add a new client secret value
+
+![image](https://user-images.githubusercontent.com/36765741/203165740-d1bc0b6a-cc7b-428b-a20f-61b1a1c2e802.png)
+
+encode it as base 64 via cmd or online https://string-functions.com/base64encode.aspx
+
+```bash
+kubectl create secret generic azurekeyvault --from-literal=clientsecret='WExkOFF+RlNzLTFLR'
+```
+*generic secret would be available in all namespaces
+
+Create aks_azurekeyvault-deploy.yaml component file
+
+The component yaml refers to the Kubernetes secretstore using `auth` property and  `secretKeyRef` refers to the certificate stored in Kubernetes secret store.
+
+```yaml
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: azurekeyvault
+  namespace: tpaper
+spec:
+  type: secretstores.azure.keyvault
+  version: v1
+  metadata:
+  - name: vaultName
+    value: "dcc-modern"
+  - name: azureTenantId
+    value: "53e93ede-ec5b-4d7a-8376-48e080d23e88"
+  - name: azureClientId
+    value: "474f817c-7eba-4656-ae09-979a4bc8d844"
+  - name: azureClientSecret
+    secretKeyRef:
+      name: azurekeyvault
+      key: clientsecret
+auth:
+  secretStore: kubernetes
+```
+
+Apply azurekeyvault.yaml component
+
+```bash
+kubectl apply -f aks_azurekeyvault-deploy.yaml
+```
+
+Now we need to update code in Order service and deploye it with a new version
+
+```C#
+            Dictionary<string, string> secrets = await _daprClient.GetSecretAsync("azurekeyvault", "RandomSecret");
+
+            string superSecret = secrets["RandomSecret"];
+
+            string responseMessage = $"Accepted EDI message {order.Id} and created delivery {savedDelivery?.Id} with super secret{superSecret}";
+```
+
+* Set a next version in manifest and command below before execution, check docker images command
+
+```bash
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v8
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperorders:v8
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all
+```
+
+Create a new order and check if your secret is available in the output.
+
+## Step 6. Migration to on-premises.
 
 
 ## Step 7.
