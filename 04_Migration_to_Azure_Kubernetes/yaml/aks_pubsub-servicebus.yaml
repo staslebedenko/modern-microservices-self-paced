@@ -2,7 +2,7 @@ apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
   name: pubsub-super-new
-  namespace: default
+  namespace: tpaper
 spec:
   type: pubsub.azure.servicebus
   version: v1
@@ -15,4 +15,4 @@ auth:
   secretStore: kubernetes
 scopes:
   - tpaperorders
-  - tpaperdeliver
+  - tpaperdelivery
