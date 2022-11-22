@@ -1112,4 +1112,24 @@ kubectl apply -f aks_tpaperdelivery-deploy.yaml
 kubectl get all
 ```
 
+
+```bash
+kubectl apply -f otel-collector-conf.yaml
+kubectl apply -f collector-config.yaml
+```
+
+```cmd
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v10
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperorders:v10
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all
+
+docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v10
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperdelivery:v10
+kubectl apply -f aks_tpaperdelivery-deploy.yaml
+kubectl get all
+```
+
 ## Step 7.
