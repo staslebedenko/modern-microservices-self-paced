@@ -1079,7 +1079,37 @@ kubectl get all
 
 Create a new order and check if your secret is available in the output.
 
-## Step 6. Migration to on-premises.
+## Step 6. Component switch and migration to on-premises.
 
+In case your session to Azure or container registry is timed out, please login again.
+
+```bash
+az login
+
+az account show
+az acr login --name dccmodernregistry
+kubectl config use-context dcc-modern-cluster
+kubectl config set-context --current --namespace=tpaper
+kubectl get all
+```
+
+```bash
+kubectl apply -f rabbitmq.yaml
+kubectl apply -f aks_pubsub-rabbitmq.yaml
+```
+
+```cmd
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v9
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperorders:v9
+kubectl apply -f aks_tpaperorders-deploy.yaml
+kubectl get all
+
+docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v9
+docker images
+docker push dccmodernregistry.azurecr.io/tpaperdelivery:v9
+kubectl apply -f aks_tpaperdelivery-deploy.yaml
+kubectl get all
+```
 
 ## Step 7.
