@@ -222,26 +222,88 @@ The Start repository contains approach for splitting monolithic app into parts i
 
 The End folder contains solution with the one solution and two projects.
 
+Let's have a look intor start solution, it is a cool monolith prepared for the split.
+We need to open and start it, to check if our environment variables is applied and get
+
+<img width="271" alt="image" src="https://user-images.githubusercontent.com/36765741/204159089-fdb1984b-ba31-4464-83f8-b0a9e91a12d9.png">
+
+a nice exception, so we need to add firewall rule to our database.
+![image](https://user-images.githubusercontent.com/36765741/204159242-7d41e947-9b23-4a89-8847-f87d8b3476bb.png)
+
+Afterwards we can safely move to the End step repository.
+! Just a reminder, it is easier for you to gradually update a single repo, starting from the End of Step 1.
+
 First we adding docker containerization via context menu of each project.
+<img width="489" alt="image" src="https://user-images.githubusercontent.com/36765741/204159578-5e72e255-928d-4b75-bd67-3b9f8a23e48f.png">
 
 Then we adding orchestration support via docker compose again to the each project
 
-Following by adding the environment variable file to the root folder
+Following by adding the environment variable file to the root folder, so secrets will be shared between service for simplicity
+<img width="183" alt="image" src="https://user-images.githubusercontent.com/36765741/204159631-754bfbfe-7052-4e8d-a286-c71347266586.png">
 
-And adding to the Order controller the method to call the Delivery container endpoint
+And manually referencing this file in docker-compose.yml
+```yaml
+version: '3.4'
+
+services:
+  tpaperdelivery:
+    image: ${DOCKER_REGISTRY-}tpaperdelivery
+    build:
+      context: .
+      dockerfile: TPaperDelivery/Dockerfile
+    env_file:
+      - settings.env
+      
+  tpaperorders:
+    image: ${DOCKER_REGISTRY-}tpaperorders
+    build:
+      context: .
+      dockerfile: TPaperOrders/Dockerfile
+    env_file:
+      - settings.env
+```
+
+Then we are changing the method to call the Delivery container endpoint,
+so it would call the second service by his have in docker
+```
+        private async Task<DeliveryModel> CreateDeliveryForOrder(EdiOrder savedOrder, CancellationToken cts)
+        {
+            string url = $"http://tpaperdelivery:80/api/delivery/create/{savedOrder.ClientId}/{savedOrder.Id}/{savedOrder.ProductCode}/{savedOrder.Quantity}";
+
+            using var httpClient = _clientFactory.CreateClient();
+            var uriBuilder = new UriBuilder(url);
+
+            using var result = await httpClient.GetAsync(uriBuilder.Uri, cts);
+            if (!result.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var content = await result.Content.ReadAsStringAsync();
+
+            return JsonConvert.DeserializeObject<DeliveryModel>(content);
+        }
+```
 
 We will also configure the Compose startup via Visual Studio so the Paper project endpoint will start as a primary starting point.
+![image](https://user-images.githubusercontent.com/36765741/204159994-00d6fae8-5316-4f45-b56c-de365d5cab7c.png)
+
+to
+
+```
+{Scheme}://{ServiceHost}:{ServicePort}/api/order/create/1
+```
+
 
 All changes available in the commit history, so it is easy to track them.
 
-Don't forget to add env file with a secrets content along with changes to docker-compose.yaml in the root folder.
-
-Solution will work with two containers, so there is a need to put the correct container port for Delivery service.
+And from this point you should run solution in debug with docker compose option
+![image](https://user-images.githubusercontent.com/36765741/204160258-35c356ff-931b-424c-9bac-6d261f432351.png)
 
 !! Be aware, if you have docker build exceptions in Visual studio with errors related to the File system, there is a need to configure docker desktop. 
 Open Docker desktop => configuration => Resources => File sharing => Add your project folder or entire drive, C:\ for example. Dont forget to remove drive setting later on.
 
-When you try to start the same solution from the new folder, you need to stop and delete containers via docker compose.
+!! When you try to start the same solution from the new folder, you might need to stop and delete containers via docker compose.
 
 ## Step 2. Azure Container apps, http and switch to dapr with pubsub
 
