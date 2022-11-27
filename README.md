@@ -105,6 +105,7 @@ az acr identity assign --identities [system] --name $registryName
 
 az aks create --resource-group $groupName --name $clusterName --node-count 3 --generate-ssh-keys --network-plugin azure
 az aks update --resource-group $groupName --name $clusterName --attach-acr $registryName
+az aks enable-addons --addon monitoring --name $clusterName --resource-group $groupName
 
 #----------------------------------------------------------------------------------
 # Service bus queue
@@ -591,6 +592,7 @@ az acr login --name dccmodernregistry
 az aks get-credentials --resource-group dcc-modern-cluster --name dcc-modern-cluster
 kubectl config use-context dcc-modern-cluster
 kubectl get all --all-namespaces
+kubectl get ds ama-logs --namespace=kube-system
 ```
 
 And initialize DAPR in our kubernetes cluster
