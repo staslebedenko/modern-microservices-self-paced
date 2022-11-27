@@ -1119,21 +1119,33 @@ kubectl get all
  docker run -d --hostname my-rabbit --name some-rabbit rabbitmq:3
  ```
 
+Also we will add Application insights instrumentation for our project
+```
+    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.21.0" />
+    <PackageReference Include="Microsoft.ApplicationInsights.Kubernetes" Version="3.1.0" />
+```
+and configure it the old way with instrumentation key, you can also do this with connection string
+```
+            services.AddApplicationInsightsTelemetry("e2-7b799ab67b89");
+            services.AddApplicationInsightsKubernetesEnricher();
+```
+then we need to rebuild solution and deploy updates
+
 ```bash
 kubectl apply -f otel-collector-conf.yaml
 kubectl apply -f collector-config.yaml
 ```
 
 ```cmd
-docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v10
+docker tag tpaperorders:latest dccmodernregistry.azurecr.io/tpaperorders:v12
 docker images
-docker push dccmodernregistry.azurecr.io/tpaperorders:v10
+docker push dccmodernregistry.azurecr.io/tpaperorders:v12
 kubectl apply -f aks_tpaperorders-deploy.yaml
 kubectl get all
 
-docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v10
+docker tag tpaperdelivery:latest dccmodernregistry.azurecr.io/tpaperdelivery:v12
 docker images
-docker push dccmodernregistry.azurecr.io/tpaperdelivery:v10
+docker push dccmodernregistry.azurecr.io/tpaperdelivery:v12
 kubectl apply -f aks_tpaperdelivery-deploy.yaml
 kubectl get all
 ```
