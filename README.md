@@ -1113,11 +1113,7 @@ docker push dccmodernregistry.azurecr.io/tpaperdelivery:v9
 kubectl apply -f aks_tpaperdelivery-deploy.yaml
 kubectl get all
 ```
- We intentionally skipped RabbitMQ local host setup, and this activity can be done via extra task
- By intalling and running the local container
- ```
- docker run -d --hostname my-rabbit --name some-rabbit rabbitmq:3
- ```
+
 
 Also we will add Application insights instrumentation for our project
 ```
@@ -1131,6 +1127,7 @@ and configure it the old way with instrumentation key, you can also do this with
 ```
 then we need to rebuild solution and deploy updates
 
+The section below can be used for logging outside of Azure platform
 ```bash
 kubectl apply -f otel-collector-conf.yaml
 kubectl apply -f collector-config.yaml
@@ -1150,4 +1147,9 @@ kubectl apply -f aks_tpaperdelivery-deploy.yaml
 kubectl get all
 ```
 
+ We intentionally skipped RabbitMQ local host setup, and this activity can be done via extra task
+ By intalling and running the local container
+ ```
+ docker run -d --hostname my-rabbit --name some-rabbit rabbitmq:3
+ ```
 ## Step 7.
