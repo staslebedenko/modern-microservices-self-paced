@@ -606,6 +606,7 @@ And after all this changes we can deploye and observe results in Azure.
 Additional tasks
 
 * Return delivery model via additional pubsub to Order service, so we can update order entity with a proper delivery Id.
+* adding multi revision app for zero downtime deployments
 * Add a local pubsub via Rabbit MQ for debug purposes(optional), see the end of thid doc
 * Add deployment via GitHub actions(optional)
 * Load testing with loader.io
