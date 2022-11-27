@@ -547,7 +547,7 @@ Additional tasks
 * Add deployment via GitHub actions(optional)
 
 
-## Step 4. Migrating solution to Kubernetes and switching pubsub to RabbitMQ
+## Step 4. Migrating solution to Kubernetes
 
 As our application grows, Container Apps might be not enough, so the essential migration path is to Azure Kubernetes Service
 
@@ -1113,7 +1113,11 @@ docker push dccmodernregistry.azurecr.io/tpaperdelivery:v9
 kubectl apply -f aks_tpaperdelivery-deploy.yaml
 kubectl get all
 ```
-
+ We intentionally skipped RabbitMQ local host setup, and this activity can be done via extra task
+ By intalling and running the local container
+ ```
+ docker run -d --hostname my-rabbit --name some-rabbit rabbitmq:3
+ ```
 
 ```bash
 kubectl apply -f otel-collector-conf.yaml
