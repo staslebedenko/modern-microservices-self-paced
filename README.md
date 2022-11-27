@@ -5,12 +5,13 @@ modern microservices workshop
 The workshop is build around many steps.
 
 0. Deployment of required Azure infrastructure, databases for step one and two, along with Container App environment and AKS
-1. Preparing monolith for split and splitting it into two services with containerization.
-2. Overview of the existing Azure resources and deployment of solution from Visual Studio
-3. Overview of Container Apps key features and problems. Extra tasks
-4. Adding DAPR to the Container App and explanation of approaches and benefits
-5. Create AKS manifest, setting up DAPR in Azure Kubernetes cluster and deploying solution to Cloud.
-6. Adding DAPR pubsub component and RabbitMQ container. Changing solution code to work with a pubsub.
+1. PMonolith split and containerization.
+2. Azure Container apps, http and switch to dapr with pubsub
+3. Relaxed part. Overview of Container Apps key features and problems. 
+Why pubsub, why migrate to Kubernetes. Extra tasks
+4. Migration from Container Apps to Kubernetes. Switch of components, SB queue to topic
+5. DAPR on AKS, adding secrets and overview of components.
+6. Component switch and migration to on-premises Scenarios.
 
 ## Prerequisites
 
@@ -242,7 +243,7 @@ Open Docker desktop => configuration => Resources => File sharing => Add your pr
 
 When you try to start the same solution from the new folder, you need to stop and delete containers via docker compose.
 
-## Step 2. Azure infrastructure, deployment and GitHub actions
+## Step 2. Azure Container apps, http and switch to dapr with pubsub
 
 We will start this step with the overview of the infrastructure deployed in Azure
 
@@ -543,8 +544,9 @@ And after all this changes we can deploye and observe results in Azure.
 Additional tasks
 
 * Return delivery model via additional pubsub to Order service, so we can update order entity with a proper delivery Id.
-* Add a local pubsub via Rabbit MQ for debug purposes(optional)
+* Add a local pubsub via Rabbit MQ for debug purposes(optional), see the end of thid doc
 * Add deployment via GitHub actions(optional)
+* Load testing with loader.io
 
 
 ## Step 4. Migrating solution to Kubernetes
